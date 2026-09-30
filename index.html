@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Line Generator</title>
+
+<!--
+  ============================================================================
+  TRUCDATABASE
+  ============================================================================
+  Pure JSON, zodat je makkelijk trucs kunt toevoegen of namen kunt corrigeren.
+  Elke truc heeft:
+    name        de naam die skaters echt gebruiken ("hardflip", niet "kickflip bs shove")
+    category    flatground | grind | slide | manual | transition | gap
+    startStance regular | fakie | switch | nollie
+    endStance   regular | fakie | switch   (nollie is een pop-positie, geen rij-stance:
+                                            nollie-trucs landen regular of fakie)
+    difficulty  1 (makkelijk) t/m 5 (banger)
+    obstacles   flat | ledge | rail | manualpad | gap (trap/gap) | bank
+
+  Stance-regels die de generator hanteert:
+    - Een truc mag volgen als zijn startStance gelijk is aan de endStance van de vorige.
+    - Uitzondering: vanuit regular kun je een nollie-truc doen (alleen je voeten verschuiven).
+    - 180's wisselen regular <-> fakie; shove-its en flips veranderen de stance niet.
+    - Switch 180's staan op endStance "regular": na een switch 180 sta je in je
+      natuurlijke houding (technisch "switch fakie"). Pas dit aan als je crew het anders noemt.
+    - Naamconventie half cab / full cab volgt: fakie frontside 180 = half cab,
+      fakie frontside 360 = full cab.
+  ============================================================================
+-->
+<script type="application/json" id="trick-db">
+{
+  "tricks": [
+    { "name": "ollie",                 "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 1, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "pop shove-it",          "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 1, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "frontside pop shove-it","category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "frontside 180",         "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 1, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "backside 180",          "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 1, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "no comply",             "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "bank"] },
+    { "name": "kickflip",              "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "heelflip",              "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "varial flip",           "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "varial heel",           "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "360 shove-it",          "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "bigspin",               "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "hardflip",              "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "inward heel",           "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "tre flip",              "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "double flip",           "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "impossible",            "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "frontside flip",        "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "backside flip",         "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "frontside heelflip",    "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "backside heelflip",     "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "frontside 360",         "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "backside 360",          "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["flat"] },
+    { "name": "laser flip",            "category": "flatground", "startStance": "regular", "endStance": "regular", "difficulty": 5, "obstacles": ["flat", "gap"] },
+    { "name": "bigspin flip",          "category": "flatground", "startStance": "regular", "endStance": "fakie",   "difficulty": 5, "obstacles": ["flat", "gap"] },
+
+    { "name": "nollie",                "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "nollie shove-it",       "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "nollie frontside 180",  "category": "flatground", "startStance": "nollie",  "endStance": "fakie",   "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "nollie backside 180",   "category": "flatground", "startStance": "nollie",  "endStance": "fakie",   "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "nollie flip",           "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "nollie heel",           "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "nollie varial flip",    "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "nollie bigspin",        "category": "flatground", "startStance": "nollie",  "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "nollie tre flip",       "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 5, "obstacles": ["flat", "gap"] },
+    { "name": "nollie inward heel",    "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 5, "obstacles": ["flat", "gap"] },
+    { "name": "nollie hardflip",       "category": "flatground", "startStance": "nollie",  "endStance": "regular", "difficulty": 5, "obstacles": ["flat", "gap"] },
+
+    { "name": "fakie ollie",           "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 1, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "revert",                "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 1, "obstacles": ["flat", "bank"] },
+    { "name": "fakie shove-it",        "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "half cab",              "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "fakie backside 180",    "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "fakie flip",            "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "fakie heel",            "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "fakie bigspin",         "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "half cab flip",         "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "half cab heel",         "category": "flatground", "startStance": "fakie",   "endStance": "regular", "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "full cab",              "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "fakie tre flip",        "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 5, "obstacles": ["flat", "gap"] },
+    { "name": "full cab flip",         "category": "flatground", "startStance": "fakie",   "endStance": "fakie",   "difficulty": 5, "obstacles": ["flat", "gap"] },
+
+    { "name": "switch ollie",          "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "switch shove-it",       "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "switch frontside 180",  "category": "flatground", "startStance": "switch",  "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "switch backside 180",   "category": "flatground", "startStance": "switch",  "endStance": "regular", "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "switch flip",           "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 3, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "switch heel",           "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 3, "obstacles": ["flat", "gap"] },
+    { "name": "switch varial flip",    "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 4, "obstacles": ["flat", "gap"] },
+    { "name": "switch tre flip",       "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 5, "obstacles": ["flat", "gap"] },
+    { "name": "switch hardflip",       "category": "flatground", "startStance": "switch",  "endStance": "switch",  "difficulty": 5, "obstacles": ["flat", "gap"] },
+
+    { "name": "boneless",              "category": "gap",        "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["flat", "gap", "bank"] },
+    { "name": "melon grab",            "category": "gap",        "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["gap", "bank"] },
+    { "name": "ollie north",           "category": "gap",        "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["gap"] },
+    { "name": "stalefish",             "category": "gap",        "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["gap", "bank"] },
+    { "name": "kickflip indy",         "category": "gap",        "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["gap"] },
+
+    { "name": "tail stall",            "category": "transition", "startStance": "regular", "endStance": "regular", "difficulty": 1, "obstacles": ["bank"] },
+    { "name": "rock to fakie",         "category": "transition", "startStance": "regular", "endStance": "fakie",   "difficulty": 2, "obstacles": ["bank"] },
+    { "name": "rock 'n' roll",         "category": "transition", "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["bank"] },
+    { "name": "frontside wallride",    "category": "transition", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["bank"] },
+    { "name": "wallie",                "category": "transition", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["bank"] },
+    { "name": "frontside disaster",    "category": "transition", "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["bank"] },
+
+    { "name": "50-50",                 "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 1, "obstacles": ["ledge", "rail"] },
+    { "name": "5-0",                   "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["ledge", "rail"] },
+    { "name": "nosegrind",             "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "crooked grind",         "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "smith grind",           "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "feeble grind",          "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "willy grind",           "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge"] },
+    { "name": "salad grind",           "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "suski grind",           "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "overcrook",             "category": "grind",      "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["ledge", "rail"] },
+    { "name": "5-0 180 out",           "category": "grind",      "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "nosegrind 180 out",     "category": "grind",      "startStance": "regular", "endStance": "fakie",   "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "fakie 50-50",           "category": "grind",      "startStance": "fakie",   "endStance": "fakie",   "difficulty": 2, "obstacles": ["ledge", "rail"] },
+    { "name": "fakie 5-0",             "category": "grind",      "startStance": "fakie",   "endStance": "fakie",   "difficulty": 3, "obstacles": ["ledge"] },
+    { "name": "switch 50-50",          "category": "grind",      "startStance": "switch",  "endStance": "switch",  "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "switch crooked grind",  "category": "grind",      "startStance": "switch",  "endStance": "switch",  "difficulty": 5, "obstacles": ["ledge"] },
+
+    { "name": "boardslide",            "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["ledge", "rail"] },
+    { "name": "noseslide",             "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["ledge", "rail"] },
+    { "name": "tailslide",             "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge"] },
+    { "name": "lipslide",              "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["ledge", "rail"] },
+    { "name": "bluntslide",            "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "noseblunt slide",       "category": "slide",      "startStance": "regular", "endStance": "regular", "difficulty": 5, "obstacles": ["ledge"] },
+    { "name": "fakie tailslide",       "category": "slide",      "startStance": "fakie",   "endStance": "fakie",   "difficulty": 4, "obstacles": ["ledge"] },
+    { "name": "switch boardslide",     "category": "slide",      "startStance": "switch",  "endStance": "switch",  "difficulty": 3, "obstacles": ["ledge", "rail"] },
+
+    { "name": "manual",                "category": "manual",     "startStance": "regular", "endStance": "regular", "difficulty": 1, "obstacles": ["manualpad", "flat"] },
+    { "name": "nose manual",           "category": "manual",     "startStance": "regular", "endStance": "regular", "difficulty": 2, "obstacles": ["manualpad", "flat"] },
+    { "name": "fakie manual",          "category": "manual",     "startStance": "fakie",   "endStance": "fakie",   "difficulty": 2, "obstacles": ["manualpad", "flat"] },
+    { "name": "one foot manual",       "category": "manual",     "startStance": "regular", "endStance": "regular", "difficulty": 3, "obstacles": ["manualpad"] },
+    { "name": "switch manual",         "category": "manual",     "startStance": "switch",  "endStance": "switch",  "difficulty": 3, "obstacles": ["manualpad", "flat"] }
+  ]
+}
+</script>
+
+<style>
+  :root {
+    --bg: #f3efe6;
+    --surface: #fffdf8;
+    --ink: #17150f;
+    --muted: #6d675b;
+    --line: #ddd5c4;
+    --chip: #ece5d6;
+    --accent: #d9481f;
+    --accent-ink: #ffffff;
+    --ok: #2f7d4f;
+    --bad: #b3261e;
+    --shadow: 0 1px 0 rgba(0,0,0,.04), 0 6px 20px -12px rgba(0,0,0,.25);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12110f;
+      --surface: #1c1a17;
+      --ink: #f2eee5;
+      --muted: #a39c8e;
+      --line: #35312a;
+      --chip: #2a2722;
+      --accent: #ff6a3d;
+      --accent-ink: #1a0d07;
+      --ok: #6cc690;
+      --bad: #ff8a80;
+      --shadow: none;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12110f; --surface: #1c1a17; --ink: #f2eee5; --muted: #a39c8e; --line: #35312a;
+    --chip: #2a2722; --accent: #ff6a3d; --accent-ink: #1a0d07; --ok: #6cc690; --bad: #ff8a80;
+    --shadow: none; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 7vw, 3.2rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  header h1 span { color: var(--accent); }
+  header p { margin: 8px 0 0; color: var(--muted); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: .78rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .settings { display: grid; gap: 18px; }
+
+  .segmented { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .segmented label { position: relative; }
+  .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+  .segmented span {
+    display: block; padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: .95rem;
+    border-right: 1px solid var(--line); user-select: none;
+  }
+  .segmented label:last-child span { border-right: 0; }
+  .segmented input:checked + span { background: var(--ink); color: var(--bg); }
+  .segmented input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .obstacles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .obstacles label {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+    cursor: pointer; font-size: .95rem; user-select: none;
+  }
+  .obstacles label.fixed { cursor: default; color: var(--muted); }
+  .obstacles input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); padding: 8px 14px; font-weight: 600;
+  }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+    padding: 12px 22px; font-size: 1.05rem; font-weight: 800; letter-spacing: .01em;
+  }
+  button.primary:hover { filter: brightness(1.05); }
+
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  ol.line { list-style: none; margin: 0; padding: 0; counter-reset: trick; }
+  ol.line li {
+    counter-increment: trick;
+    display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: center; gap: 12px;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  ol.line li:first-child { border-top: 0; }
+  ol.line li::before {
+    content: counter(trick);
+    font-weight: 900; font-size: 1.4rem; color: var(--muted); text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.line li.banger::before { color: var(--accent); }
+  .trick-name { font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
+  .trick-name::first-letter { text-transform: uppercase; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; align-items: center; }
+  .chip {
+    font-size: .76rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    background: var(--chip); color: var(--ink); white-space: nowrap;
+  }
+  .chip.stance { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .chip.banger { background: var(--accent); color: var(--accent-ink); }
+  .dots { font-size: .7rem; letter-spacing: 1px; color: var(--muted); }
+  .dots b { color: var(--accent); font-weight: 400; }
+  .reroll { padding: 6px 10px; font-size: 1.1rem; line-height: 1; }
+
+  .sentence {
+    margin: 14px 0 0; padding: 14px 16px; border-radius: 10px; background: var(--chip);
+    font-size: 1.02rem; line-height: 1.55;
+  }
+  .copied { color: var(--ok); font-weight: 700; opacity: 0; transition: opacity .15s; }
+  .copied.show { opacity: 1; }
+  .notice { color: var(--muted); margin: 0; }
+  .notice.error { color: var(--bad); }
+
+  footer { margin-top: 28px; color: var(--muted); font-size: .9rem; }
+  footer pre {
+    white-space: pre-wrap; word-break: break-word; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: .82rem;
+  }
+  .test-ok { color: var(--ok); }
+  .test-bad { color: var(--bad); }
+
+  @media (max-width: 480px) {
+    ol.line li { grid-template-columns: 1.6rem 1fr auto; gap: 10px; }
+    .segmented span { padding: 8px 12px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Line <span>Generator</span></h1>
+    <p>Een run van 5 tot 8 bestaande trucs, met kloppende stances en de banger aan het eind.</p>
+  </header>
+
+  <section class="card settings" aria-label="Instellingen">
+    <div>
+      <h2>Niveau</h2>
+      <div class="segmented" role="radiogroup" aria-label="Moeilijkheidsniveau">
+        <label><input type="radio" name="level" value="beginner"><span>Beginner</span></label>
+        <label><input type="radio" name="level" value="gevorderd" checked><span>Gevorderd</span></label>
+        <label><input type="radio" name="level" value="pro"><span>Pro</span></label>
+      </div>
+    </div>
+    <div>
+      <h2>Obstakels in de spot</h2>
+      <div class="obstacles" id="obstacles"></div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="new-line">Nieuwe lijn</button>
+    </div>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <h2>De lijn</h2>
+    <p class="notice" id="notice" hidden></p>
+    <ol class="line" id="line"></ol>
+    <p class="sentence" id="sentence"></p>
+    <div class="actions" style="margin-top:12px">
+      <button id="copy">Kopieer als tekst</button>
+      <span class="copied" id="copied" role="status">Gekopieerd!</span>
+    </div>
+  </section>
+
+  <footer>
+    <button id="run-tests">Zelftest: 1000 lijnen</button>
+    <pre id="test-output" hidden></pre>
+  </footer>
+</main>
+
+<!-- ======================================================================
+     KERNLOGICA (geen DOM-toegang, ook te draaien in Node: zie test/run.js)
+     ====================================================================== -->
+<script id="core">
+var LineCore = (function () {
+  'use strict';
+
+  var STANCES = ['regular', 'fakie', 'switch', 'nollie'];
+  var CATEGORIES = ['flatground', 'grind', 'slide', 'manual', 'transition', 'gap'];
+  var OBSTACLES = {
+    flat:      { label: 'Flat',       noun: 'flat' },
+    ledge:     { label: 'Ledge',      noun: 'ledge' },
+    rail:      { label: 'Rail',       noun: 'rail' },
+    manualpad: { label: 'Manual pad', noun: 'manual pad' },
+    gap:       { label: 'Trap / gap', noun: 'trap' },
+    bank:      { label: 'Bank',       noun: 'bank' }
+  };
+  // maxDiff bepaalt de pool, minBanger de minimale moeilijkheid van de afsluiter.
+  var LEVELS = {
+    beginner:  { label: 'Beginner',  maxDiff: 2, minBanger: 2 },
+    gevorderd: { label: 'Gevorderd', maxDiff: 4, minBanger: 3 },
+    pro:       { label: 'Pro',       maxDiff: 5, minBanger: 4 }
+  };
+  var LINE_MIN = 5, LINE_MAX = 8;
+  var CONTACT = ['grind', 'slide', 'manual'];
+  var MIDDLE_CONNECTORS = ['dan', 'daarna', 'gevolgd door', 'meteen door naar'];
+  var FINAL_CONNECTORS = ['en dan', 'en als afsluiter'];
+
+  function validateDatabase(tricks) {
+    var errors = [];
+    var seen = {};
+    tricks.forEach(function (t, i) {
+      var where = '#' + i + ' "' + (t && t.name) + '"';
+      if (!t || typeof t.name !== 'string' || !t.name.trim()) { errors.push(where + ': naam ontbreekt'); return; }
+      if (/[.!?\n]/.test(t.name)) errors.push(where + ': naam mag geen . ! ? of regeleinde bevatten');
+      var key = t.name.toLowerCase();
+      if (seen[key]) errors.push(where + ': dubbele naam');
+      seen[key] = true;
+      if (CATEGORIES.indexOf(t.category) < 0) errors.push(where + ': onbekende categorie ' + t.category);
+      if (STANCES.indexOf(t.startStance) < 0) errors.push(where + ': onbekende start-stance ' + t.startStance);
+      if (STANCES.indexOf(t.endStance) < 0) errors.push(where + ': onbekende eind-stance ' + t.endStance);
+      if (t.endStance === 'nollie') errors.push(where + ': eind-stance kan geen nollie zijn (land regular of fakie)');
+      if (!(t.difficulty >= 1 && t.difficulty <= 5 && Math.floor(t.difficulty) === t.difficulty)) errors.push(where + ': moeilijkheid moet 1-5 zijn');
+      if (!Array.isArray(t.obstacles) || !t.obstacles.length) errors.push(where + ': geen obstakels');
+      else t.obstacles.forEach(function (o) { if (!OBSTACLES[o]) errors.push(where + ': onbekend obstakel ' + o); });
+    });
+    return errors;
+  }
+
+  // Stance-continuïteit: zelfde stance, of vanuit regular een nollie-truc (voeten verschuiven).
+  function canFollow(prevEnd, nextStart) {
+    return nextStart === prevEnd || (prevEnd === 'regular' && nextStart === 'nollie');
+  }
+
+  function firstMax(banger) { return Math.ceil(banger / 2); }
+
+  function makeContext(tricks, levelKey, spotList) {
+    var level = LEVELS[levelKey] || LEVELS.gevorderd;
+    var spot = { flat: true };
+    (spotList || []).forEach(function (o) { if (OBSTACLES[o]) spot[o] = true; });
+    var pool = [];
+    tricks.forEach(function (t) {
+      if (t.difficulty > level.maxDiff) return;
+      var obs = t.obstacles.filter(function (o) { return spot[o]; });
+      obs.forEach(function (o) { pool.push({ trick: t, obstacle: o, share: 1 / obs.length }); });
+    });
+    return {
+      levelKey: levelKey, level: level, spot: spot, pool: pool,
+      hasObstacles: pool.some(function (c) { return c.obstacle !== 'flat'; })
+    };
+  }
+
+  function flatRunEnding(line) {
+    var run = 0;
+    for (var i = line.length - 1; i >= 0 && line[i].obstacle === 'flat'; i--) run++;
+    return run;
+  }
+  function maxFlatRun(line) {
+    var best = 0, run = 0;
+    line.forEach(function (p) { run = p.obstacle === 'flat' ? run + 1 : 0; best = Math.max(best, run); });
+    return best;
+  }
+
+  // Controleert een lijn. Basisregels gelden altijd; strict voegt de opbouw-regels toe.
+  function checkLine(line, ctx, strict) {
+    var errs = [];
+    var n = line.length;
+    if (n < LINE_MIN || n > LINE_MAX) errs.push('lengte ' + n + ' valt buiten ' + LINE_MIN + '-' + LINE_MAX);
+    var names = {};
+    line.forEach(function (p, i) {
+      var t = p.trick;
+      if (t.obstacles.indexOf(p.obstacle) < 0) errs.push(t.name + ' kan niet op ' + p.obstacle);
+      if (!ctx.spot[p.obstacle]) errs.push(p.obstacle + ' staat niet in de spot');
+      if (t.difficulty > ctx.level.maxDiff) errs.push(t.name + ' is te moeilijk voor ' + ctx.level.label);
+      if (names[t.name]) errs.push(t.name + ' komt dubbel voor');
+      names[t.name] = true;
+      if (i > 0) {
+        var prev = line[i - 1];
+        if (!canFollow(prev.trick.endStance, t.startStance)) {
+          errs.push('stance: ' + prev.trick.name + ' eindigt ' + prev.trick.endStance + ', ' + t.name + ' begint ' + t.startStance);
+        }
+        if (prev.obstacle !== 'flat' && p.obstacle !== 'flat') {
+          errs.push('twee obstakeltrucs achter elkaar: ' + prev.trick.name + ', ' + t.name);
+        }
+      }
+    });
+    if (n > 0) {
+      var last = line[n - 1].trick.difficulty;
+      var maxOther = 0;
+      for (var i = 0; i < n - 1; i++) maxOther = Math.max(maxOther, line[i].trick.difficulty);
+      if (last < maxOther) errs.push('de laatste truc is niet de moeilijkste');
+      if (strict) {
+        if (last <= maxOther) errs.push('de laatste truc is niet strikt de moeilijkste');
+        if (line[0].trick.difficulty > firstMax(last)) errs.push('de opener is te moeilijk');
+        if (ctx.hasObstacles) {
+          var nonFlat = line.filter(function (p) { return p.obstacle !== 'flat'; }).length;
+          if (nonFlat < 2) errs.push('te weinig obstakeltrucs');
+          if (maxFlatRun(line) > 2) errs.push('te veel flatground achter elkaar');
+        }
+      }
+    }
+    return errs;
+  }
+
+  function pick(arr, rand) { return arr[Math.floor(rand() * arr.length)]; }
+
+  function search(ctx, n, banger, strict, rand) {
+    var line = [], used = {}, nodes = 0;
+    var fMax = firstMax(banger);
+
+    function candidatesAt(i) {
+      var prev = line[i - 1];
+      var isLast = i === n - 1;
+      // Opbouw: doelmoeilijkheid loopt op van 1 naar (banger - 1).
+      var target = n > 2 ? 1 + Math.max(0, banger - 2) * (i / (n - 2)) : 1;
+      var out = [];
+      ctx.pool.forEach(function (c) {
+        var t = c.trick, d = t.difficulty;
+        if (used[t.name]) return;
+        if (isLast ? d !== banger : (strict ? d >= banger : d > banger)) return;
+        if (strict && i === 0 && d > fMax) return;
+        if (prev) {
+          if (!canFollow(prev.trick.endStance, t.startStance)) return;
+          if (prev.obstacle !== 'flat' && c.obstacle !== 'flat') return;
+          if (strict && ctx.hasObstacles && c.obstacle === 'flat' && flatRunEnding(line) >= 2) return;
+        }
+        var w = c.share;
+        if (!isLast) w *= Math.pow(1 / (1 + Math.abs(d - target)), 3);
+        if (ctx.hasObstacles && c.obstacle !== 'flat') w *= 1.6;
+        out.push({ c: c, key: Math.pow(rand(), 1 / w) }); // gewogen shuffle
+      });
+      out.sort(function (a, b) { return b.key - a.key; });
+      return out.slice(0, 10).map(function (o) { return o.c; });
+    }
+
+    function dfs(i) {
+      if (++nodes > 4000) return false;
+      if (i === n) {
+        return !strict || !ctx.hasObstacles ||
+          line.filter(function (p) { return p.obstacle !== 'flat'; }).length >= 2;
+      }
+      var cands = candidatesAt(i);
+      for (var k = 0; k < cands.length; k++) {
+        var c = cands[k];
+        line.push({ trick: c.trick, obstacle: c.obstacle });
+        used[c.trick.name] = true;
+        if (dfs(i + 1)) return true;
+        line.pop();
+        used[c.trick.name] = false;
+      }
+      return false;
+    }
+    return dfs(0) ? line.slice() : null;
+  }
+
+  function generateLine(ctx, rand) {
+    rand = rand || Math.random;
+    var diffs = [];
+    ctx.pool.forEach(function (c) { if (diffs.indexOf(c.trick.difficulty) < 0) diffs.push(c.trick.difficulty); });
+    if (!diffs.length) return null;
+    var bangerOpts = diffs.filter(function (d) { return d >= ctx.level.minBanger; });
+    if (!bangerOpts.length) bangerOpts = [Math.max.apply(null, diffs)];
+    var modes = [true, false];
+    for (var m = 0; m < modes.length; m++) {
+      for (var attempt = 0; attempt < 30; attempt++) {
+        var n = LINE_MIN + Math.floor(rand() * (LINE_MAX - LINE_MIN + 1));
+        var banger = attempt < 20 ? pick(bangerOpts, rand) : pick(diffs, rand);
+        var line = search(ctx, n, banger, modes[m], rand);
+        if (line) return line;
+      }
+    }
+    return null;
+  }
+
+  // Rolt alleen truc i opnieuw; de rest van de lijn (en dus de stance-keten) blijft staan.
+  function rerollAt(line, i, ctx, rand) {
+    rand = rand || Math.random;
+    var current = line[i].trick.name;
+    var modes = [true, false];
+    for (var m = 0; m < modes.length; m++) {
+      var opts = [];
+      ctx.pool.forEach(function (c) {
+        if (c.trick.name === current) return;
+        var test = line.slice();
+        test[i] = { trick: c.trick, obstacle: c.obstacle };
+        if (!checkLine(test, ctx, modes[m]).length) opts.push({ line: test, key: Math.pow(rand(), 1 / c.share) });
+      });
+      if (opts.length) {
+        opts.sort(function (a, b) { return b.key - a.key; });
+        return opts[0].line;
+      }
+    }
+    return null;
+  }
+
+  // "naar" alleen als twee trucs direct in elkaar overlopen: een pop/flip van flat in een grind, slide of manual.
+  function flowsInto(a, b) {
+    return a.trick.category === 'flatground' && a.obstacle === 'flat' &&
+      a.trick.name !== 'revert' && CONTACT.indexOf(b.trick.category) >= 0;
+  }
+
+  function placePhrase(p, rand, allowOpFlat) {
+    var name = p.trick.name, o = p.obstacle;
+    if (o === 'flat') return allowOpFlat && rand() < 0.3 ? name + ' op flat' : name;
+    if (o === 'gap') return name + (rand() < 0.65 ? ' over de ' : ' van de ') + OBSTACLES.gap.noun;
+    return name + ' op de ' + OBSTACLES[o].noun;
+  }
+
+  function lineToSentence(line, rand) {
+    rand = rand || Math.random;
+    var n = line.length;
+    var conns = [null];
+    var used = {}, bareUsed = false, i;
+    // Eerst bepalen waar "naar" komt, zodat we geen "meteen door naar X naar Y" maken.
+    for (i = 1; i < n - 1; i++) conns[i] = flowsInto(line[i - 1], line[i]) && rand() < 0.7 ? 'naar' : null;
+    conns[n - 1] = pick(FINAL_CONNECTORS, rand);
+    for (i = 1; i < n - 1; i++) {
+      if (conns[i] === 'naar') continue;
+      var prevConn = conns[i - 1];
+      if (!bareUsed && i > 1 && prevConn && rand() < 0.2) { conns[i] = ''; bareUsed = true; continue; }
+      var avoid = function (c) { return c === prevConn || (c === 'meteen door naar' && conns[i + 1] === 'naar'); };
+      var opts = MIDDLE_CONNECTORS.filter(function (c) { return !avoid(c) && !used[c]; });
+      if (!opts.length) opts = MIDDLE_CONNECTORS.filter(function (c) { return !avoid(c); });
+      var c = pick(opts, rand);
+      used[c] = true;
+      conns[i] = c;
+    }
+    var text = '';
+    line.forEach(function (p, i) {
+      var phrase = placePhrase(p, rand, conns[i + 1] !== 'naar');
+      var c = conns[i];
+      if (i === 0) text = phrase;
+      else if (c === 'naar') text += ' naar ' + phrase;
+      else if (c === 'en dan') text += ' en dan ' + phrase;
+      else if (c === 'en als afsluiter') text += ' en als afsluiter een ' + phrase;
+      else if (c === 'gevolgd door') text += ', gevolgd door een ' + phrase;
+      else if (c === '') text += ', ' + phrase;
+      else text += ', ' + c + ' ' + phrase;
+    });
+    text = text.charAt(0).toUpperCase() + text.slice(1) + '.';
+    return { text: text, connectors: conns };
+  }
+
+  function checkSentence(line, s) {
+    var errs = [];
+    var t = s.text, n = line.length;
+    if (typeof t !== 'string' || !t) return ['lege tekst'];
+    if (t.charAt(t.length - 1) !== '.') errs.push('eindigt niet met een punt');
+    if ((t.match(/[.!?]/g) || []).length !== 1) errs.push('is niet precies één zin');
+    if (/[\n\r]/.test(t)) errs.push('bevat een regeleinde');
+    if (/^\s*\d+[.)]\s/.test(t) || /[*_#`]/.test(t)) errs.push('bevat nummering of opmaak');
+    if (t.charAt(0) !== t.charAt(0).toUpperCase()) errs.push('begint niet met een hoofdletter');
+    if (FINAL_CONNECTORS.indexOf(s.connectors[n - 1]) < 0) errs.push('laatste truc begint niet met "en dan"/"en als afsluiter"');
+    var lastName = line[n - 1].trick.name;
+    var finalIdx = Math.max(t.lastIndexOf(' en dan ' + lastName), t.lastIndexOf(' en als afsluiter een ' + lastName));
+    if (finalIdx < 0) errs.push('afsluiter niet goed ingeleid');
+    for (var i = 1; i < n; i++) {
+      if (s.connectors[i] === 'naar' && !flowsInto(line[i - 1], line[i])) errs.push('"naar" zonder directe overgang bij ' + line[i].trick.name);
+      if (i > 1 && s.connectors[i] && s.connectors[i] === s.connectors[i - 1]) errs.push('zelfde verbindingswoord twee keer achter elkaar');
+      if (s.connectors[i] === 'naar' && s.connectors[i - 1] === 'meteen door naar') errs.push('"meteen door naar ... naar" achter elkaar');
+    }
+    var pos = 0, lower = t.toLowerCase();
+    line.forEach(function (p) {
+      var at = lower.indexOf(p.trick.name.toLowerCase(), pos);
+      if (at < 0) errs.push('truc ontbreekt of staat in verkeerde volgorde: ' + p.trick.name);
+      else pos = at + p.trick.name.length;
+    });
+    return errs;
+  }
+
+  // Genereert `count` lijnen met willekeurige instellingen en controleert alle harde eisen.
+  function runSelfTest(tricks, count, rand) {
+    count = count || 1000;
+    rand = rand || Math.random;
+    var failures = [];
+    var lengths = {}, strictCount = 0, rerolls = 0;
+    var levelKeys = Object.keys(LEVELS);
+    var obsKeys = Object.keys(OBSTACLES).filter(function (o) { return o !== 'flat'; });
+    var dbErrors = validateDatabase(tricks);
+    dbErrors.forEach(function (e) { failures.push('database: ' + e); });
+
+    function fail(k, line, msg) {
+      failures.push('lijn ' + (k + 1) + ': ' + msg + (line ? ' [' + line.map(function (p) { return p.trick.name; }).join(', ') + ']' : ''));
+    }
+    function hardChecks(k, line, ctx, label) {
+      if (line.length < LINE_MIN || line.length > LINE_MAX) fail(k, line, label + 'lengte ' + line.length);
+      for (var i = 1; i < line.length; i++) {
+        if (!canFollow(line[i - 1].trick.endStance, line[i].trick.startStance)) fail(k, line, label + 'stance-breuk bij ' + line[i].trick.name);
+      }
+      checkLine(line, ctx, false).forEach(function (e) { fail(k, line, label + e); });
+      var s = lineToSentence(line, rand);
+      checkSentence(line, s).forEach(function (e) { fail(k, line, label + 'tekst ' + e + ': "' + s.text + '"'); });
+    }
+
+    for (var k = 0; k < count; k++) {
+      var levelKey = levelKeys[k % levelKeys.length];
+      var spotList = obsKeys.filter(function () { return rand() < 0.55; });
+      var ctx = makeContext(tricks, levelKey, spotList);
+      var line = generateLine(ctx, rand);
+      if (!line) { fail(k, null, 'geen lijn gegenereerd (' + levelKey + ', ' + spotList.join('+') + ')'); continue; }
+      lengths[line.length] = (lengths[line.length] || 0) + 1;
+      if (!checkLine(line, ctx, true).length) strictCount++;
+      hardChecks(k, line, ctx, '');
+      var j = Math.floor(rand() * line.length);
+      var rerolled = rerollAt(line, j, ctx, rand);
+      if (rerolled) {
+        rerolls++;
+        for (var x = 0; x < line.length; x++) {
+          if (x !== j && rerolled[x] !== line[x]) fail(k, rerolled, 'reroll wijzigde een andere truc');
+        }
+        hardChecks(k, rerolled, ctx, 'na reroll #' + (j + 1) + ': ');
+      }
+    }
+    return {
+      passed: failures.length === 0,
+      count: count,
+      failureCount: failures.length,
+      failures: failures.slice(0, 25),
+      lengths: lengths,
+      strictShare: strictCount / count,
+      rerolls: rerolls
+    };
+  }
+
+  return {
+    STANCES: STANCES, CATEGORIES: CATEGORIES, OBSTACLES: OBSTACLES, LEVELS: LEVELS,
+    validateDatabase: validateDatabase, canFollow: canFollow, makeContext: makeContext,
+    checkLine: checkLine, generateLine: generateLine, rerollAt: rerollAt,
+    flowsInto: flowsInto, lineToSentence: lineToSentence, checkSentence: checkSentence,
+    runSelfTest: runSelfTest
+  };
+})();
+</script>
+
+<!-- ======================================================================
+     UI
+     ====================================================================== -->
+<script>
+(function () {
+  'use strict';
+  var TRICKS = JSON.parse(document.getElementById('trick-db').textContent).tricks;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { line: null, sentence: '' };
+  var STORE_KEY = 'line-generator-settings';
+
+  var dbErrors = LineCore.validateDatabase(TRICKS);
+  if (dbErrors.length) console.warn('Trucdatabase:', dbErrors);
+
+  // Obstakel-checkboxes opbouwen. Flat is er altijd (je rolt altijd over de grond tussen obstakels).
+  var obsBox = $('obstacles');
+  Object.keys(LineCore.OBSTACLES).forEach(function (key) {
+    var label = document.createElement('label');
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = key;
+    input.checked = key === 'flat' || key === 'ledge' || key === 'manualpad' || key === 'gap';
+    if (key === 'flat') { input.disabled = true; label.className = 'fixed'; label.title = 'Flat is er altijd'; }
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(LineCore.OBSTACLES[key].label));
+    obsBox.appendChild(label);
+  });
+
+  function loadSettings() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      if (!s) return;
+      var radio = document.querySelector('input[name="level"][value="' + s.level + '"]');
+      if (radio) radio.checked = true;
+      if (Array.isArray(s.spot)) {
+        obsBox.querySelectorAll('input:not([disabled])').forEach(function (el) { el.checked = s.spot.indexOf(el.value) >= 0; });
+      }
+    } catch (e) { /* opslag niet beschikbaar: standaardinstellingen */ }
+  }
+  function settings() {
+    var level = document.querySelector('input[name="level"]:checked').value;
+    var spot = [];
+    obsBox.querySelectorAll('input:checked:not([disabled])').forEach(function (el) { spot.push(el.value); });
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ level: level, spot: spot })); } catch (e) { /* negeren */ }
+    return { level: level, spot: spot };
+  }
+  function context() {
+    var s = settings();
+    return LineCore.makeContext(TRICKS, s.level, s.spot);
+  }
+
+  function notice(msg, isError) {
+    var el = $('notice');
+    el.hidden = !msg;
+    el.textContent = msg || '';
+    el.className = 'notice' + (isError ? ' error' : '');
+  }
+
+  function stanceLabel(t) {
+    return t.startStance === t.endStance ? t.startStance : t.startStance + ' → ' + t.endStance;
+  }
+
+  function render() {
+    var ol = $('line');
+    ol.innerHTML = '';
+    if (!state.line) {
+      $('sentence').textContent = '';
+      $('copy').disabled = true;
+      return;
+    }
+    $('copy').disabled = false;
+    var n = state.line.length;
+    state.line.forEach(function (p, i) {
+      var t = p.trick;
+      var li = document.createElement('li');
+      if (i === n - 1) li.className = 'banger';
+
+      var body = document.createElement('div');
+      var name = document.createElement('div');
+      name.className = 'trick-name';
+      name.textContent = t.name;
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+
+      var obs = document.createElement('span');
+      obs.className = 'chip';
+      obs.textContent = LineCore.OBSTACLES[p.obstacle].label;
+      var st = document.createElement('span');
+      st.className = 'chip stance';
+      st.textContent = stanceLabel(t);
+      st.title = 'Start-stance' + (t.startStance !== t.endStance ? ' → eind-stance' : '');
+      var dots = document.createElement('span');
+      dots.className = 'dots';
+      dots.setAttribute('aria-label', 'Moeilijkheid ' + t.difficulty + ' van 5');
+      dots.innerHTML = '<b>' + '●'.repeat(t.difficulty) + '</b>' + '○'.repeat(5 - t.difficulty);
+      meta.appendChild(obs);
+      meta.appendChild(st);
+      meta.appendChild(dots);
+      if (i === n - 1) {
+        var b = document.createElement('span');
+        b.className = 'chip banger';
+        b.textContent = 'banger';
+        meta.appendChild(b);
+      }
+      body.appendChild(name);
+      body.appendChild(meta);
+
+      var btn = document.createElement('button');
+      btn.className = 'reroll';
+      btn.textContent = '↻';
+      btn.title = 'Rol alleen deze truc opnieuw';
+      btn.setAttribute('aria-label', 'Rol ' + t.name + ' opnieuw');
+      btn.addEventListener('click', function () { reroll(i); });
+
+      li.appendChild(body);
+      li.appendChild(btn);
+      ol.appendChild(li);
+    });
+    $('sentence').textContent = state.sentence;
+  }
+
+  function setLine(line) {
+    state.line = line;
+    state.sentence = line ? LineCore.lineToSentence(line).text : '';
+    render();
+  }
+
+  function newLine() {
+    var line = LineCore.generateLine(context());
+    notice(line ? '' : 'Met deze instellingen is geen lijn van 5 trucs te maken. Zet meer obstakels aan.', !line);
+    setLine(line);
+  }
+
+  function reroll(i) {
+    if (!state.line) return;
+    var line = LineCore.rerollAt(state.line, i, context());
+    if (!line) { notice('Geen andere truc past op plek ' + (i + 1) + ' zonder de stance-keten te breken.'); return; }
+    notice('');
+    setLine(line);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('kopiëren mislukt'));
+    });
+  }
+
+  var copiedTimer;
+  $('copy').addEventListener('click', function () {
+    if (!state.sentence) return;
+    copyText(state.sentence).then(function () {
+      var el = $('copied');
+      el.textContent = 'Gekopieerd!';
+      el.classList.add('show');
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(function () { el.classList.remove('show'); }, 1400);
+    }, function () {
+      notice('Kopiëren lukte niet; selecteer de tekst hierboven handmatig.', true);
+    });
+  });
+
+  $('new-line').addEventListener('click', newLine);
+  document.querySelectorAll('input[name="level"]').forEach(function (el) { el.addEventListener('change', newLine); });
+  obsBox.addEventListener('change', newLine);
+
+  $('run-tests').addEventListener('click', function () {
+    var out = $('test-output');
+    out.hidden = false;
+    out.textContent = 'Bezig…';
+    setTimeout(function () {
+      var t0 = performance.now();
+      var r = LineCore.runSelfTest(TRICKS, 1000);
+      var ms = Math.round(performance.now() - t0);
+      out.className = r.passed ? 'test-ok' : 'test-bad';
+      out.textContent =
+        (r.passed ? '✓ Alle ' + r.count + ' lijnen geslaagd' : '✗ ' + r.failureCount + ' fouten') + ' (' + ms + ' ms)\n' +
+        'Lengtes: ' + Object.keys(r.lengths).map(function (k) { return k + '×' + r.lengths[k]; }).join(', ') + '\n' +
+        'Volledige opbouw-regels gehaald: ' + Math.round(r.strictShare * 100) + '%\n' +
+        'Rerolls getest: ' + r.rerolls +
+        (r.failures.length ? '\n\n' + r.failures.join('\n') : '');
+      console.log('Zelftest', r);
+    }, 20);
+  });
+
+  window.runLineTests = function (count) { return LineCore.runSelfTest(TRICKS, count || 1000); };
+
+  loadSettings();
+  newLine();
+})();
+</script>
+</body>
+</html>
